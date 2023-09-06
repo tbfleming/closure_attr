@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use std::mem::take;
@@ -159,7 +161,7 @@ impl<'a> VisitMut for Visitor<'a> {
             closure.body = Box::new(Expr::Verbatim(quote! {
                 (|| {
                     #upgrade
-                    Some(#body)
+                    Some((||#body)())
                 })().unwrap_or_default()
             }));
         }
@@ -172,7 +174,7 @@ impl<'a> VisitMut for Visitor<'a> {
     }
 }
 
-pub fn with_closure(attr: TokenStream2, item: TokenStream2) -> TokenStream2 {
+pub fn with_closure(attr: TokenStream2, item_tokens: TokenStream2) -> TokenStream2 {
     let mut errors = quote! {};
     if !attr.is_empty() {
         let e = Error::new(
@@ -182,7 +184,15 @@ pub fn with_closure(attr: TokenStream2, item: TokenStream2) -> TokenStream2 {
         .to_compile_error();
         errors = quote! {#errors #e};
     }
-    let mut item: syn::Item = syn::parse2(item).unwrap();
+    let item = syn::parse2(item_tokens.clone());
+    let mut item = match item {
+        Ok(item) => item,
+        Err(e) => {
+            let e1 = take(&mut errors);
+            let e2 = e.to_compile_error();
+            return quote! {#e1 #e2 #item_tokens};
+        }
+    };
     let mut visitor = Visitor {
         errors: &mut errors,
     };
