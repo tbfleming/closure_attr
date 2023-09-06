@@ -1,0 +1,15 @@
+[package]
+name = "closure_attr"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = ["closure_attr_core"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+closure_attr_core = { path = "closure_attr_core" }
