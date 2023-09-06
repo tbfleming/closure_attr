@@ -15,4 +15,4 @@ members = ["closure_attr_core"]
 proc-macro = true
 
 [dependencies]
-closure_attr_core = { path = "closure_attr_core" }
+closure_attr_core = { version = "0.1.0", path = "closure_attr_core" }
