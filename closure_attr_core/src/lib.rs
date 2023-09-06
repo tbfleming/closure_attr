@@ -24,8 +24,8 @@ impl Parse for Capture {
         let span = input.span();
         let ty = match Ident::parse_any(input) {
             Ok(v) => v,
-            Err(_) => Err(Error::new(
-                span, // The span in e and currently in input are garbled.
+            Err(e) => Err(Error::new(
+                e.span(),
                 "expected clone, clone mut, ref, ref mut, rcweak, or arcweak",
             ))?,
         };
@@ -34,22 +34,13 @@ impl Parse for Capture {
             input.parse::<Token![mut]>()?;
             ty += " mut";
         }
-        let parse_ident = || {
-            match Ident::parse_any(input) {
-                Ok(v) => Ok(v),
-                Err(_) => Err(Error::new(
-                    span, // The span in e and currently in input are garbled.
-                    format!("expected identifier after {}", ty),
-                )),
-            }
-        };
         match ty.as_str() {
-            "clone" => Ok(Capture::Clone(parse_ident()?)),
-            "clone mut" => Ok(Capture::CloneMut(parse_ident()?)),
-            "ref" => Ok(Capture::Ref(parse_ident()?)),
-            "ref mut" => Ok(Capture::RefMut(parse_ident()?)),
-            "rcweak" => Ok(Capture::RcWeak(parse_ident()?)),
-            "arcweak" => Ok(Capture::ArcWeak(parse_ident()?)),
+            "clone" => Ok(Capture::Clone(Ident::parse(input)?)),
+            "clone mut" => Ok(Capture::CloneMut(Ident::parse(input)?)),
+            "ref" => Ok(Capture::Ref(Ident::parse(input)?)),
+            "ref mut" => Ok(Capture::RefMut(Ident::parse(input)?)),
+            "rcweak" => Ok(Capture::RcWeak(Ident::parse(input)?)),
+            "arcweak" => Ok(Capture::ArcWeak(Ident::parse(input)?)),
             _ => Err(Error::new(
                 span,
                 "expected clone, clone mut, ref, ref mut, rcweak, or arcweak",

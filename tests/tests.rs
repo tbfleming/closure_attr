@@ -40,3 +40,25 @@ fn prevent_rc_loop() {
     drop(x);
     assert_eq!(dropped.get(), true);
 }
+
+#[test]
+#[closure_attr::with_closure]
+fn return_in_body() {
+    let i = Rc::new(42);
+    let callback = #[closure(clone i)]
+    move || {
+        return *i;
+    };
+    assert_eq!(callback(), 42);
+}
+
+#[test]
+#[closure_attr::with_closure]
+fn return_in_weak_body() {
+    let i = Rc::new(42);
+    let callback = #[closure(rcweak i)]
+    move || {
+        return *i;
+    };
+    assert_eq!(callback(), 42);
+}
