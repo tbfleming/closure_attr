@@ -100,7 +100,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (1)" }
             fn f() {| |();}
         }
         .to_string()
@@ -114,7 +114,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -128,7 +128,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak" }
+            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -142,7 +142,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,32usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak" }
+            compile_error!{ (2usize,26usize), (2usize,32usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)" }
             fn f() {| |();}
         }
         .to_string()

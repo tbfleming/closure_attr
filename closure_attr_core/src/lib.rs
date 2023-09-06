@@ -26,7 +26,8 @@ impl Parse for Capture {
             Ok(v) => v,
             Err(e) => Err(Error::new(
                 e.span(),
-                "expected clone, clone mut, ref, ref mut, rcweak, or arcweak",
+                // The (1) and (2) tags aid testing and debugging.
+                "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (1)",
             ))?,
         };
         let mut ty = ty.to_string();
@@ -43,7 +44,7 @@ impl Parse for Capture {
             "arcweak" => Ok(Capture::ArcWeak(Ident::parse(input)?)),
             _ => Err(Error::new(
                 span,
-                "expected clone, clone mut, ref, ref mut, rcweak, or arcweak",
+                "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)",
             )),
         }
     }
