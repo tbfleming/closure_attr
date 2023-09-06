@@ -5,7 +5,8 @@ This crate provides an attribute to simplify closure captures.
 ## Example
 
 ```rust
-# use std::{rc::Rc, cell::Cell, cell::RefCell};
+use std::{rc::Rc, cell::Cell, cell::RefCell};
+
 // Expects a 'static callback
 fn use_callback<F: FnMut() + 'static>(mut callback: F) {
     callback();
@@ -28,7 +29,8 @@ fn example() {
     assert_eq!(s.borrow_mut().clone(), "Hello, world! 0");
     assert_eq!(i.get(), 1);
 }
-# example();
+
+example();
 ```
 
 It expands to:
@@ -63,7 +65,8 @@ closure upgrades the reference when it is called. If any upgrade fails, it skips
 executing the body and returns `Default::default()`.
 
 ```rust
-# use std::{rc::Rc, sync::Arc};
+use std::{rc::Rc, sync::Arc};
+
 #[closure_attr::with_closure]
 fn example() {
     let r = Rc::new(3);
@@ -74,7 +77,8 @@ fn example() {
 
     assert_eq!(closure(), 12);
 }
-# example();
+
+example();
 ```
 
 This Expands to:

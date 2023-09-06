@@ -2,7 +2,6 @@
 
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use std::mem::take;
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -91,13 +90,13 @@ impl<'a> VisitMut for Visitor<'a> {
                         Meta::Path(p) => {
                             if let Some(ident) = p.get_ident() {
                                 if ident == "closure" {
-                                    let e1 = take(self.errors);
-                                    let e2 = Error::new(
-                                        a.span(),
-                                        "closure attribute must have arguments",
-                                    )
-                                    .to_compile_error();
-                                    *self.errors = quote! {#e1 #e2};
+                                    self.errors.extend(
+                                        Error::new(
+                                            a.span(),
+                                            "closure attribute must have arguments",
+                                        )
+                                        .to_compile_error(),
+                                    );
                                     return false;
                                 }
                             }
@@ -108,9 +107,7 @@ impl<'a> VisitMut for Visitor<'a> {
                                     let mut ct = match syn::parse2::<Captures>(l.tokens.clone()) {
                                         Ok(v) => v,
                                         Err(e) => {
-                                            let e1 = take(self.errors);
-                                            let e2 = e.to_compile_error();
-                                            *self.errors = quote! {#e1 #e2};
+                                            self.errors.extend(e.to_compile_error());
                                             return false;
                                         }
                                     };
@@ -130,29 +127,29 @@ impl<'a> VisitMut for Visitor<'a> {
             return;
         }
         if closure.capture.is_none() {
-            let e1 = take(self.errors);
-            let e2 = Error::new(closure.span(), "closure must be declared with `move`")
-                .to_compile_error();
-            *self.errors = quote! {#e1 #e2};
+            self.errors.extend(
+                Error::new(closure.span(), "closure must be declared with `move`")
+                    .to_compile_error(),
+            );
         }
 
         let mut locals = quote! {};
         let mut upgrade = quote! {};
         for cap in captures {
             match cap {
-                Capture::Clone(ident) => locals = quote! {#locals let #ident = #ident.clone();},
+                Capture::Clone(ident) => locals.extend(quote! {let #ident = #ident.clone();}),
                 Capture::CloneMut(ident) => {
-                    locals = quote! {#locals let mut #ident = #ident.clone();}
+                    locals.extend(quote! {let mut #ident = #ident.clone();})
                 }
-                Capture::Ref(ident) => locals = quote! {#locals let #ident = &#ident;},
-                Capture::RefMut(ident) => locals = quote! {#locals let #ident = &mut #ident;},
+                Capture::Ref(ident) => locals.extend(quote! {let #ident = &#ident;}),
+                Capture::RefMut(ident) => locals.extend(quote! {let #ident = &mut #ident;}),
                 Capture::RcWeak(ident) => {
-                    locals = quote! {#locals let #ident = ::std::rc::Rc::downgrade(&#ident);};
-                    upgrade = quote! {#upgrade let #ident = #ident.upgrade()?;};
+                    locals.extend(quote! {let #ident = ::std::rc::Rc::downgrade(&#ident);});
+                    upgrade.extend(quote! {let #ident = #ident.upgrade()?;});
                 }
                 Capture::ArcWeak(ident) => {
-                    locals = quote! {#locals let #ident = ::std::sync::Arc::downgrade(&#ident);};
-                    upgrade = quote! {#upgrade let #ident = #ident.upgrade()?;};
+                    locals.extend(quote! {let #ident = ::std::sync::Arc::downgrade(&#ident);});
+                    upgrade.extend(quote! {let #ident = #ident.upgrade()?;});
                 }
             }
         }
@@ -177,20 +174,20 @@ impl<'a> VisitMut for Visitor<'a> {
 pub fn with_closure(attr: TokenStream2, item_tokens: TokenStream2) -> TokenStream2 {
     let mut errors = quote! {};
     if !attr.is_empty() {
-        let e = Error::new(
-            proc_macro2::Span::call_site(),
-            "with_closure attribute takes no arguments",
-        )
-        .to_compile_error();
-        errors = quote! {#errors #e};
+        errors.extend(
+            Error::new(
+                proc_macro2::Span::call_site(),
+                "with_closure attribute takes no arguments",
+            )
+            .to_compile_error(),
+        );
     }
     let item = syn::parse2(item_tokens.clone());
     let mut item = match item {
         Ok(item) => item,
         Err(e) => {
-            let e1 = take(&mut errors);
-            let e2 = e.to_compile_error();
-            return quote! {#e1 #e2 #item_tokens};
+            let e = e.to_compile_error();
+            return quote! {#errors #e #item_tokens};
         }
     };
     let mut visitor = Visitor {
