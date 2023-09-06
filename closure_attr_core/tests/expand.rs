@@ -197,3 +197,294 @@ fn errors() {
         .to_string()
     );
 }
+
+#[test]
+fn no_change() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure()] move ||();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            move | | ();
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn clone() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(clone c)] move ||();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let c = c.clone();
+                move | | ()
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn fn_in_mod() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"mod m{ fn f() {
+                #[closure(clone c)] move ||();
+            }}"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {mod m{ fn f() {
+            {
+                let c = c.clone();
+                move | | ()
+            };
+        }}}
+        .to_string()
+    );
+}
+
+#[test]
+fn closure_in_var() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                let clos = #[closure(clone c)] move ||();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            let clos = {
+                let c = c.clone();
+                move | | ()
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn closure_in_call() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                callit(#[closure(clone c)] move ||());
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            callit({
+                let c = c.clone();
+                move | | ()
+            });
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn immediate_call() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                (#[closure(clone c)] move ||())();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            ({
+                let c = c.clone();
+                move | | ()
+            })();
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn all_but_weak() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(clone c, clone mut cm, ref r, ref mut rm)] move ||();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let c = c.clone();
+                let mut cm = cm.clone();
+                let r = &r;
+                let rm = &mut rm;
+                move | | ()
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn all_but_weak_with_args() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(clone c, clone mut cm, ref r, ref mut rm)] move |a, b:i32, mut c|();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let c = c.clone();
+                let mut cm = cm.clone();
+                let r = &r;
+                let rm = &mut rm;
+                move |a, b:i32, mut c| ()
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn all_but_weak_with_ret() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(clone c, clone mut cm, ref r, ref mut rm)] move |a, b:i32, mut c| {return 7;};
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let c = c.clone();
+                let mut cm = cm.clone();
+                let r = &r;
+                let rm = &mut rm;
+                move |a, b:i32, mut c| {return 7;}
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn weak() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(rcweak r, arcweak a)] move ||();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let r = ::std::rc::Rc::downgrade(&r);
+                let a = ::std::sync::Arc::downgrade(&a);
+                move | |
+                    (|| {
+                        let r = r.upgrade()?;
+                        let a = a.upgrade()?;
+                        Some((|| ())())
+                    })()
+                    .unwrap_or_default()
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn weak_with_args() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(rcweak r, arcweak a)] move |a, b:i32, mut c|();
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let r = ::std::rc::Rc::downgrade(&r);
+                let a = ::std::sync::Arc::downgrade(&a);
+                move |a, b:i32, mut c|
+                    (|| {
+                        let r = r.upgrade()?;
+                        let a = a.upgrade()?;
+                        Some((|| ())())
+                    })()
+                    .unwrap_or_default()
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn weak_with_ret() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(rcweak r, arcweak a)] move |a, b:i32, mut c| {return 7;};
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let r = ::std::rc::Rc::downgrade(&r);
+                let a = ::std::sync::Arc::downgrade(&a);
+                move |a, b:i32, mut c|
+                    (|| {
+                        let r = r.upgrade()?;
+                        let a = a.upgrade()?;
+                        Some((|| {return 7;})())
+                    })()
+                    .unwrap_or_default()
+            };
+        }}
+        .to_string()
+    );
+}
