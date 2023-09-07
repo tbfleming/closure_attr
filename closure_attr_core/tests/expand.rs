@@ -4,7 +4,9 @@ use proc_macro2::{LineColumn, Spacing, TokenStream};
 use quote::quote;
 
 fn is_punct(token: Option<TT>, ch: char, spacing: Spacing) -> bool {
-    let Some(token) = token else {return false;};
+    let Some(token) = token else {
+        return false;
+    };
     if let TT::Punct(punct) = token {
         punct.as_char() == ch && punct.spacing() == spacing
     } else {
@@ -13,7 +15,9 @@ fn is_punct(token: Option<TT>, ch: char, spacing: Spacing) -> bool {
 }
 
 fn is_ident(token: Option<TT>, s: &str) -> bool {
-    let Some(token) = token else {return false;};
+    let Some(token) = token else {
+        return false;
+    };
     if let TT::Ident(ident) = token {
         ident.to_string() == s
     } else {
@@ -38,10 +42,16 @@ fn annotate_errors(stream: TokenStream) -> String {
             {
                 return false;
             }
-            let Some(tt) = it2.next() else {return false;};
-            let TT::Group(g) = tt else {return false;};
+            let Some(tt) = it2.next() else {
+                return false;
+            };
+            let TT::Group(g) = tt else {
+                return false;
+            };
             let mut it3 = g.stream().into_iter();
-            let Some(TT::Literal(lit)) = it3.next() else {return false;};
+            let Some(TT::Literal(lit)) = it3.next() else {
+                return false;
+            };
             let LineColumn {
                 line: l1,
                 column: c1,
@@ -55,7 +65,7 @@ fn annotate_errors(stream: TokenStream) -> String {
             return true;
         })();
         if !found {
-            let Some(tok) = it.next() else {break};
+            let Some(tok) = it.next() else { break };
             out.extend(quote! {#tok});
         }
     }
