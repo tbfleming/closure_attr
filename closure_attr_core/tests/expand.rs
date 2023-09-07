@@ -110,7 +110,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (1)" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (1)" }
             fn f() {| |();}
         }
         .to_string()
@@ -124,7 +124,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -138,7 +138,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -152,7 +152,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,32usize), "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,32usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -343,7 +343,7 @@ fn all_but_weak() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(clone c, clone mut cm, ref r, ref mut rm)] move ||();
+                #[closure(clone c, clone mut cm, ref r, ref mut rm, move m, move mut mm)] move ||();
             }"#
             .parse()
             .unwrap()
@@ -355,6 +355,8 @@ fn all_but_weak() {
                 let mut cm = cm.clone();
                 let r = &r;
                 let rm = &mut rm;
+                let m = m;
+                let mut mm = mm;
                 move | | {
                     #[allow(unreachable_code)]
                     loop {
@@ -363,6 +365,8 @@ fn all_but_weak() {
                         let _ = &cm;
                         let _ = &r;
                         let _ = &rm;
+                        let _ = &m;
+                        let _ = &mm;
                     }
                     ()
                 }
@@ -378,7 +382,7 @@ fn all_but_weak_with_args() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(clone c, clone mut cm, ref r, ref mut rm)] move |a, b:i32, mut c|();
+                #[closure(clone c, clone mut cm, ref r, ref mut rm, move m, move mut mm)] move |a, b:i32, mut c|();
             }"#
             .parse()
             .unwrap()
@@ -390,6 +394,8 @@ fn all_but_weak_with_args() {
                 let mut cm = cm.clone();
                 let r = &r;
                 let rm = &mut rm;
+                let m = m;
+                let mut mm = mm;
                 move |a, b:i32, mut c| {
                     #[allow(unreachable_code)]
                     loop {
@@ -398,6 +404,8 @@ fn all_but_weak_with_args() {
                         let _ = &cm;
                         let _ = &r;
                         let _ = &rm;
+                        let _ = &m;
+                        let _ = &mm;
                     }
                     ()
                 }
@@ -413,7 +421,7 @@ fn all_but_weak_with_ret() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(clone c, clone mut cm, ref r, ref mut rm)] move |a, b:i32, mut c| {return 7;};
+                #[closure(clone c, clone mut cm, ref r, ref mut rm, move m, move mut mm)] move |a, b:i32, mut c| {return 7;};
             }"#
             .parse()
             .unwrap()
@@ -425,6 +433,8 @@ fn all_but_weak_with_ret() {
                 let mut cm = cm.clone();
                 let r = &r;
                 let rm = &mut rm;
+                let m = m;
+                let mut mm = mm;
                 move |a, b:i32, mut c| {
                     #[allow(unreachable_code)]
                     loop {
@@ -433,6 +443,8 @@ fn all_but_weak_with_ret() {
                         let _ = &cm;
                         let _ = &r;
                         let _ = &rm;
+                        let _ = &m;
+                        let _ = &mm;
                     }
                     { return 7; }
                 }

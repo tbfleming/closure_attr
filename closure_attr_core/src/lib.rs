@@ -17,6 +17,8 @@ enum Capture {
     RefMut(Ident),
     RcWeak(Ident),
     ArcWeak(Ident),
+    Move(Ident),
+    MoveMut(Ident),
 }
 
 impl Parse for Capture {
@@ -27,7 +29,7 @@ impl Parse for Capture {
             Err(e) => Err(Error::new(
                 e.span(),
                 // The (1) and (2) tags aid testing and debugging.
-                "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (1)",
+                "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (1)",
             ))?,
         };
         let mut ty = ty.to_string();
@@ -40,11 +42,13 @@ impl Parse for Capture {
             "clone mut" => Ok(Capture::CloneMut(Ident::parse(input)?)),
             "ref" => Ok(Capture::Ref(Ident::parse(input)?)),
             "ref mut" => Ok(Capture::RefMut(Ident::parse(input)?)),
+            "move" => Ok(Capture::Move(Ident::parse(input)?)),
+            "move mut" => Ok(Capture::MoveMut(Ident::parse(input)?)),
             "rcweak" => Ok(Capture::RcWeak(Ident::parse(input)?)),
             "arcweak" => Ok(Capture::ArcWeak(Ident::parse(input)?)),
             _ => Err(Error::new(
                 span,
-                "expected clone, clone mut, ref, ref mut, rcweak, or arcweak (2)",
+                "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)",
             )),
         }
     }
@@ -147,6 +151,14 @@ impl<'a> VisitMut for Visitor<'a> {
                 }
                 Capture::RefMut(ident) => {
                     locals.extend(quote_spanned! {span=> let #ident = &mut #ident;});
+                    use_whole.extend(quote_spanned! {span=> let _ = &#ident;});
+                }
+                Capture::Move(ident) => {
+                    locals.extend(quote_spanned! {span=> let #ident = #ident;});
+                    use_whole.extend(quote_spanned! {span=> let _ = &#ident;});
+                }
+                Capture::MoveMut(ident) => {
+                    locals.extend(quote_spanned! {span=> let mut #ident = #ident;});
                     use_whole.extend(quote_spanned! {span=> let _ = &#ident;});
                 }
                 Capture::RcWeak(ident) => {

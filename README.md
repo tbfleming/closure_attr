@@ -35,11 +35,12 @@ example();
 
 It expands to:
 
-```text
+```ignore
 use_callback({
-    let s = s.clone();
-    let i = i.clone();
+    let s = s.clone(); // Clone requested by attribute
+    let i = i.clone(); // Clone requested by attribute
     move || {
+        {... code to force whole captures ...}
         s.replace(format!("Hello, world! {}", i.get()));
         i.set(i.get() + 1);
     }
@@ -54,6 +55,8 @@ use_callback({
 | `clone mut <ident>` | Clone the variable and make it mutable |
 | `ref <ident>` | Take a reference to the variable |
 | `ref mut <ident>` | Take a mutable reference to the variable |
+| `move <ident>` | Move the variable into the closure |
+| `move mut <ident>` | Move the variable into the closure and make it mutable |
 | `rcweak <ident>` | See below |
 | `arcweak <ident>` | See below |
 
@@ -83,7 +86,7 @@ example();
 
 This Expands to:
 
-```text
+```ignore
 let closure = {
     let r = ::std::rc::Rc::downgrade(&r);
     let a = ::std::sync::Arc::downgrade(&a);
@@ -97,6 +100,47 @@ let closure = {
     }
 };
 ```
+
+## Whole captures
+
+The `capture` attribute captures whole variables. For example, this code without the attribute produces an error:
+
+```ignore
+fn send<T: Send>(_: T) {}
+
+struct SendPointer(*const ());
+unsafe impl Send for SendPointer {}
+
+fn f() {
+    let p = SendPointer(std::ptr::null());
+    send(
+        move || {
+            p.0;
+        },
+    );
+}
+```
+
+```text
+error[E0277]: `*const ()` cannot be sent between threads safely
+```
+
+A workaround:
+
+```ignore
+#[closure_attr::with_closure]
+fn f() {
+    let p = SendPointer(std::ptr::null());
+    send(
+        #[closure(move p)]
+        move || {
+            p.0;
+        },
+    );
+}
+```
+
+This is equivalent to inserting `let _ = &p;` into the body of the closure.
 
 ## License
 
