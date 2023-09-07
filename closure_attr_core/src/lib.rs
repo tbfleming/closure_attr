@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
@@ -127,36 +127,45 @@ impl<'a> VisitMut for Visitor<'a> {
             );
         }
 
+        let span = closure.span();
         let mut locals = quote! {};
         let mut upgrade = quote! {};
         for cap in captures {
             match cap {
-                Capture::Clone(ident) => locals.extend(quote! {let #ident = #ident.clone();}),
-                Capture::CloneMut(ident) => {
-                    locals.extend(quote! {let mut #ident = #ident.clone();})
+                Capture::Clone(ident) => {
+                    locals.extend(quote_spanned! {span=> let #ident = #ident.clone();})
                 }
-                Capture::Ref(ident) => locals.extend(quote! {let #ident = &#ident;}),
-                Capture::RefMut(ident) => locals.extend(quote! {let #ident = &mut #ident;}),
+                Capture::CloneMut(ident) => {
+                    locals.extend(quote_spanned! {span=> let mut #ident = #ident.clone();})
+                }
+                Capture::Ref(ident) => locals.extend(quote_spanned! {span=> let #ident = &#ident;}),
+                Capture::RefMut(ident) => {
+                    locals.extend(quote_spanned! {span=> let #ident = &mut #ident;})
+                }
                 Capture::RcWeak(ident) => {
-                    locals.extend(quote! {let #ident = ::std::rc::Rc::downgrade(&#ident);});
-                    upgrade.extend(quote! {let #ident = #ident.upgrade()?;});
+                    locals.extend(
+                        quote_spanned! {span=> let #ident = ::std::rc::Rc::downgrade(&#ident);},
+                    );
+                    upgrade.extend(quote_spanned! {span=> let #ident = #ident.upgrade()?;});
                 }
                 Capture::ArcWeak(ident) => {
-                    locals.extend(quote! {let #ident = ::std::sync::Arc::downgrade(&#ident);});
-                    upgrade.extend(quote! {let #ident = #ident.upgrade()?;});
+                    locals.extend(
+                        quote_spanned! {span=> let #ident = ::std::sync::Arc::downgrade(&#ident);},
+                    );
+                    upgrade.extend(quote_spanned! {span=> let #ident = #ident.upgrade()?;});
                 }
             }
         }
         if !upgrade.is_empty() {
             let body = closure.body.clone();
-            closure.body = Box::new(Expr::Verbatim(quote! {
+            closure.body = Box::new(Expr::Verbatim(quote_spanned! {span=>
                 (|| {
                     #upgrade
                     Some((||#body)())
                 })().unwrap_or_default()
             }));
         }
-        *expr = Expr::Verbatim(quote! {
+        *expr = Expr::Verbatim(quote_spanned! {span=>
             {
                 #locals
                 #closure
