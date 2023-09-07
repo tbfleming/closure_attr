@@ -6,7 +6,7 @@ version = 3
 name = "closure_attr"
 version = "0.1.0"
 dependencies = [
- "closure_attr_core",
+ "closure_attr_derive",
 ]
 
 [[package]]
@@ -16,6 +16,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "closure_attr_derive"
+version = "0.1.0"
+dependencies = [
+ "closure_attr_core",
 ]
 
 [[package]]
