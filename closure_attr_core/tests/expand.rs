@@ -110,7 +110,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (1)" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (1)" }
             fn f() {| |();}
         }
         .to_string()
@@ -124,7 +124,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -138,7 +138,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -148,11 +148,11 @@ fn errors() {
         annotate_errors(with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(rcweak mut x)]||();
+                #[closure(weak mut x)]||();
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,32usize), "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,30usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -460,7 +460,7 @@ fn weak() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(rcweak r, arcweak a)] move ||();
+                #[closure(weak r, weak a)] move ||();
             }"#
             .parse()
             .unwrap()
@@ -468,21 +468,13 @@ fn weak() {
         .to_string(),
         quote! {fn f() {
             {
-                let r = ::std::rc::Rc::downgrade(&r);
-                let a = ::std::sync::Arc::downgrade(&a);
+                let r = ::closure_attr::Downgrade::downgrade(&r);
+                let a = ::closure_attr::Downgrade::downgrade(&a);
                 move | |
                     (|| {
                         let r = r.upgrade()?;
                         let a = a.upgrade()?;
-                        Some((|| {
-                            #[allow(unreachable_code)]
-                            loop {
-                                break;
-                                let _ = &r;
-                                let _ = &a;
-                            }
-                            ()
-                        })())
+                        Some((||())())
                     })()
                     .unwrap_or_default()
             };
@@ -497,7 +489,7 @@ fn weak_with_args() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(rcweak r, arcweak a)] move |a, b:i32, mut c|();
+                #[closure(weak r, weak a)] move |a, b:i32, mut c|();
             }"#
             .parse()
             .unwrap()
@@ -505,21 +497,13 @@ fn weak_with_args() {
         .to_string(),
         quote! {fn f() {
             {
-                let r = ::std::rc::Rc::downgrade(&r);
-                let a = ::std::sync::Arc::downgrade(&a);
+                let r = ::closure_attr::Downgrade::downgrade(&r);
+                let a = ::closure_attr::Downgrade::downgrade(&a);
                 move |a, b:i32, mut c|
                     (|| {
                         let r = r.upgrade()?;
                         let a = a.upgrade()?;
-                        Some((|| {
-                            #[allow(unreachable_code)]
-                            loop {
-                                break;
-                                let _ = &r;
-                                let _ = &a;
-                            }
-                            ()
-                        })())
+                        Some((||())())
                     })()
                     .unwrap_or_default()
             };
@@ -534,7 +518,7 @@ fn weak_with_ret() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(rcweak r, arcweak a)] move |a, b:i32, mut c| {return 7;};
+                #[closure(weak r, weak a)] move |a, b:i32, mut c| {return 7;};
             }"#
             .parse()
             .unwrap()
@@ -542,21 +526,15 @@ fn weak_with_ret() {
         .to_string(),
         quote! {fn f() {
             {
-                let r = ::std::rc::Rc::downgrade(&r);
-                let a = ::std::sync::Arc::downgrade(&a);
+                let r = ::closure_attr::Downgrade::downgrade(&r);
+                let a = ::closure_attr::Downgrade::downgrade(&a);
                 move |a, b:i32, mut c|
                     (|| {
                         let r = r.upgrade()?;
                         let a = a.upgrade()?;
-                        Some((|| {
-                            #[allow(unreachable_code)]
-                            loop {
-                                break;
-                                let _ = &r;
-                                let _ = &a;
-                            }
+                        Some((||
                             { return 7; }
-                        })())
+                        )())
                     })()
                     .unwrap_or_default()
             };

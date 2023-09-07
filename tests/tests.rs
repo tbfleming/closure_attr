@@ -1,6 +1,7 @@
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
+    sync::Arc,
 };
 
 struct WithCallback {
@@ -30,7 +31,7 @@ fn prevent_rc_loop() {
         callback: RefCell::new(None),
     });
 
-    let callback = #[closure(rcweak x)]
+    let callback = #[closure(weak x)]
     move || {
         x.called.set(true);
     };
@@ -59,8 +60,8 @@ fn return_in_body() {
 #[test]
 #[closure_attr::with_closure]
 fn return_in_weak_body() {
-    let i = Rc::new(42);
-    let callback = #[closure(rcweak i)]
+    let i = Arc::new(42);
+    let callback = #[closure(weak i)]
     move || {
         return *i;
     };

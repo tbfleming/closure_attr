@@ -15,8 +15,7 @@ enum Capture {
     CloneMut(Ident),
     Ref(Ident),
     RefMut(Ident),
-    RcWeak(Ident),
-    ArcWeak(Ident),
+    Weak(Ident),
     Move(Ident),
     MoveMut(Ident),
 }
@@ -29,7 +28,7 @@ impl Parse for Capture {
             Err(e) => Err(Error::new(
                 e.span(),
                 // The (1) and (2) tags aid testing and debugging.
-                "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (1)",
+                "expected clone, clone mut, ref, ref mut, move, move mut, or weak (1)",
             ))?,
         };
         let mut ty = ty.to_string();
@@ -44,11 +43,10 @@ impl Parse for Capture {
             "ref mut" => Ok(Capture::RefMut(Ident::parse(input)?)),
             "move" => Ok(Capture::Move(Ident::parse(input)?)),
             "move mut" => Ok(Capture::MoveMut(Ident::parse(input)?)),
-            "rcweak" => Ok(Capture::RcWeak(Ident::parse(input)?)),
-            "arcweak" => Ok(Capture::ArcWeak(Ident::parse(input)?)),
+            "weak" => Ok(Capture::Weak(Ident::parse(input)?)),
             _ => Err(Error::new(
                 span,
-                "expected clone, clone mut, ref, ref mut, move, move mut, rcweak, or arcweak (2)",
+                "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)",
             )),
         }
     }
@@ -161,35 +159,29 @@ impl<'a> VisitMut for Visitor<'a> {
                     locals.extend(quote_spanned! {span=> let mut #ident = #ident;});
                     use_whole.extend(quote_spanned! {span=> let _ = &#ident;});
                 }
-                Capture::RcWeak(ident) => {
+                Capture::Weak(ident) => {
                     locals.extend(
-                        quote_spanned! {span=> let #ident = ::std::rc::Rc::downgrade(&#ident);},
+                        quote_spanned! {span=> let #ident = ::closure_attr::Downgrade::downgrade(&#ident);},
                     );
-                    use_whole.extend(quote_spanned! {span=> let _ = &#ident;});
-                    upgrade.extend(quote_spanned! {span=> let #ident = #ident.upgrade()?;});
-                }
-                Capture::ArcWeak(ident) => {
-                    locals.extend(
-                        quote_spanned! {span=> let #ident = ::std::sync::Arc::downgrade(&#ident);},
-                    );
-                    use_whole.extend(quote_spanned! {span=> let _ = &#ident;});
                     upgrade.extend(quote_spanned! {span=> let #ident = #ident.upgrade()?;});
                 }
             }
         }
 
         // Force capture of whole variables without preventing unused warnings.
-        let body = closure.body.clone();
-        closure.body = Box::new(Expr::Verbatim(quote_spanned! {span=>
-            {
-                #[allow(unreachable_code)]
-                loop {
-                    break;
-                    #use_whole
+        if !use_whole.is_empty() {
+            let body = closure.body.clone();
+            closure.body = Box::new(Expr::Verbatim(quote_spanned! {span=>
+                {
+                    #[allow(unreachable_code)]
+                    loop {
+                        break;
+                        #use_whole
+                    }
+                    #body
                 }
-                #body
-            }
-        }));
+            }));
+        }
 
         if !upgrade.is_empty() {
             let body = closure.body.clone();

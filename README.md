@@ -57,15 +57,14 @@ use_callback({
 | `ref mut <ident>` | Take a mutable reference to the variable |
 | `move <ident>` | Move the variable into the closure |
 | `move mut <ident>` | Move the variable into the closure and make it mutable |
-| `rcweak <ident>` | See below |
-| `arcweak <ident>` | See below |
+| `weak <ident>` | See below |
 
-## `rcweak` and `arcweak`
+## `weak`
 
-`rcweak` and `arcweak` use weak pointers to help break up reference cycles.
-They downgrade an `Rc` or `Arc` pointer and capture it. The transformed
-closure upgrades the reference when it is called. If any upgrade fails, it skips
-executing the body and returns `Default::default()`.
+`weak` uses weak pointers to help break up reference cycles. It downgrades
+an `Rc` or `Arc` pointer (or anything which implements [Downgrade] and [Upgrade])
+and captures it. The transformed closure upgrades the pointer when it is called.
+If any upgrade fails, it skips executing the body and returns `Default::default()`.
 
 ```rust
 use std::{rc::Rc, sync::Arc};
@@ -75,7 +74,7 @@ fn example() {
     let r = Rc::new(3);
     let a = Arc::new(4);
 
-    let closure = #[closure(rcweak r, arcweak a)]
+    let closure = #[closure(weak r, weak a)]
     move || *r * *a;
 
     assert_eq!(closure(), 12);
@@ -88,8 +87,8 @@ This Expands to:
 
 ```ignore
 let closure = {
-    let r = ::std::rc::Rc::downgrade(&r);
-    let a = ::std::sync::Arc::downgrade(&a);
+    let r = ::closure_attr::Downgrade::downgrade(&r);
+    let a = ::closure_attr::Downgrade::downgrade(&a);
     move || {
         (|| {
             let r = r.upgrade()?;
