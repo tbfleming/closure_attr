@@ -84,3 +84,27 @@ fn embedded_closure() {
     assert_eq!(run_static_callback(inner), 42);
     assert_eq!(*i, 42);
 }
+
+#[test]
+fn capture_whole() {
+    // Test by https://github.com/steffahn
+    // Compile will fail if only p.0 is captured
+    fn send<T: Send>(_: T) {}
+
+    #[derive(Clone)]
+    struct SendPointer(*const ());
+    unsafe impl Send for SendPointer {}
+
+    #[closure_attr::with_closure]
+    fn f() {
+        let p = SendPointer(std::ptr::null());
+        send(
+            #[closure(clone p)]
+            move || {
+                p.0;
+            },
+        );
+    }
+
+    let _ = f;
+}

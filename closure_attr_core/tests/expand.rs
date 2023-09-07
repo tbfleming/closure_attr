@@ -184,7 +184,7 @@ fn errors() {
             fn f() {
                 {
                     let mut x = x.clone();
-                    | | ()
+                    | | {#[allow(unreachable_code)]loop{break;let _ = &x;} ()}
                 };
             }
         }
@@ -242,7 +242,7 @@ fn clone() {
         quote! {fn f() {
             {
                 let c = c.clone();
-                move | | ()
+                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
             };
         }}
         .to_string()
@@ -264,7 +264,7 @@ fn fn_in_mod() {
         quote! {mod m{ fn f() {
             {
                 let c = c.clone();
-                move | | ()
+                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
             };
         }}}
         .to_string()
@@ -286,7 +286,7 @@ fn closure_in_var() {
         quote! {fn f() {
             let clos = {
                 let c = c.clone();
-                move | | ()
+                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
             };
         }}
         .to_string()
@@ -308,7 +308,7 @@ fn closure_in_call() {
         quote! {fn f() {
             callit({
                 let c = c.clone();
-                move | | ()
+                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
             });
         }}
         .to_string()
@@ -330,7 +330,7 @@ fn immediate_call() {
         quote! {fn f() {
             ({
                 let c = c.clone();
-                move | | ()
+                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
             })();
         }}
         .to_string()
@@ -355,7 +355,17 @@ fn all_but_weak() {
                 let mut cm = cm.clone();
                 let r = &r;
                 let rm = &mut rm;
-                move | | ()
+                move | | {
+                    #[allow(unreachable_code)]
+                    loop {
+                        break;
+                        let _ = &c;
+                        let _ = &cm;
+                        let _ = &r;
+                        let _ = &rm;
+                    }
+                    ()
+                }
             };
         }}
         .to_string()
@@ -380,7 +390,17 @@ fn all_but_weak_with_args() {
                 let mut cm = cm.clone();
                 let r = &r;
                 let rm = &mut rm;
-                move |a, b:i32, mut c| ()
+                move |a, b:i32, mut c| {
+                    #[allow(unreachable_code)]
+                    loop {
+                        break;
+                        let _ = &c;
+                        let _ = &cm;
+                        let _ = &r;
+                        let _ = &rm;
+                    }
+                    ()
+                }
             };
         }}
         .to_string()
@@ -405,7 +425,17 @@ fn all_but_weak_with_ret() {
                 let mut cm = cm.clone();
                 let r = &r;
                 let rm = &mut rm;
-                move |a, b:i32, mut c| {return 7;}
+                move |a, b:i32, mut c| {
+                    #[allow(unreachable_code)]
+                    loop {
+                        break;
+                        let _ = &c;
+                        let _ = &cm;
+                        let _ = &r;
+                        let _ = &rm;
+                    }
+                    { return 7; }
+                }
             };
         }}
         .to_string()
@@ -432,7 +462,15 @@ fn weak() {
                     (|| {
                         let r = r.upgrade()?;
                         let a = a.upgrade()?;
-                        Some((|| ())())
+                        Some((|| {
+                            #[allow(unreachable_code)]
+                            loop {
+                                break;
+                                let _ = &r;
+                                let _ = &a;
+                            }
+                            ()
+                        })())
                     })()
                     .unwrap_or_default()
             };
@@ -461,7 +499,15 @@ fn weak_with_args() {
                     (|| {
                         let r = r.upgrade()?;
                         let a = a.upgrade()?;
-                        Some((|| ())())
+                        Some((|| {
+                            #[allow(unreachable_code)]
+                            loop {
+                                break;
+                                let _ = &r;
+                                let _ = &a;
+                            }
+                            ()
+                        })())
                     })()
                     .unwrap_or_default()
             };
@@ -490,7 +536,15 @@ fn weak_with_ret() {
                     (|| {
                         let r = r.upgrade()?;
                         let a = a.upgrade()?;
-                        Some((|| {return 7;})())
+                        Some((|| {
+                            #[allow(unreachable_code)]
+                            loop {
+                                break;
+                                let _ = &r;
+                                let _ = &a;
+                            }
+                            { return 7; }
+                        })())
                     })()
                     .unwrap_or_default()
             };
@@ -522,13 +576,27 @@ fn embedded_closure() {
             {
                 let i = i.clone();
                 move | | {
-                    let inner = {
-                        let i = i.clone();
-                        move | | {
-                            return *i;
-                        }
-                    };
-                    (inner, i)
+                    #[allow(unreachable_code)]
+                    loop {
+                        break;
+                        let _ = &i;
+                    }
+                    {
+                        let inner = {
+                            let i = i.clone();
+                            move | | {
+                                #[allow(unreachable_code)]
+                                loop {
+                                    break;
+                                    let _ = &i;
+                                }
+                                {
+                                    return *i;
+                                }
+                            }
+                        };
+                        (inner, i)
+                    }
                 }
             };
         }}
