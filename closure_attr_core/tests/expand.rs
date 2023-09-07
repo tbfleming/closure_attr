@@ -488,3 +488,40 @@ fn weak_with_ret() {
         .to_string()
     );
 }
+
+#[test]
+fn embedded_closure() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(clone i)]
+                move || {
+                    let inner = #[closure(clone i)]
+                    move || {
+                        return *i;
+                    };
+                    (inner, i)
+                };
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {fn f() {
+            {
+                let i = i.clone();
+                move | | {
+                    let inner = {
+                        let i = i.clone();
+                        move | | {
+                            return *i;
+                        }
+                    };
+                    (inner, i)
+                }
+            };
+        }}
+        .to_string()
+    );
+}

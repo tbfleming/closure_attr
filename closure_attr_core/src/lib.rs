@@ -68,8 +68,10 @@ struct Visitor<'a> {
 
 impl<'a> VisitMut for Visitor<'a> {
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
+        syn::visit_mut::visit_expr_mut(self, expr);
+
         let Expr::Closure(closure) = expr else {
-            return syn::visit_mut::visit_expr_mut(self, expr);
+            return;
         };
 
         let mut captures = Vec::new();

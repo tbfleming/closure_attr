@@ -15,6 +15,10 @@ impl Drop for WithCallback {
     }
 }
 
+fn run_static_callback<R, F: FnOnce() -> R + 'static>(f: F) -> R {
+    f()
+}
+
 #[test]
 #[closure_attr::with_closure]
 fn prevent_rc_loop() {
@@ -61,4 +65,22 @@ fn return_in_weak_body() {
         return *i;
     };
     assert_eq!(callback(), 42);
+}
+
+#[test]
+#[closure_attr::with_closure]
+fn embedded_closure() {
+    let i = Rc::new(42);
+    let callback = #[closure(clone i)]
+    move || {
+        let inner = #[closure(clone i)]
+        move || {
+            return *i;
+        };
+        (inner, i)
+    };
+    let (inner, i2) = run_static_callback(callback);
+    assert_eq!(*i2, 42);
+    assert_eq!(run_static_callback(inner), 42);
+    assert_eq!(*i, 42);
 }
