@@ -1,6 +1,6 @@
 [package]
 name = "closure_attr"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "An attribute macro to simplify closure captures"
 repository = "https://github.com/tbfleming/closure_attr"
@@ -12,4 +12,4 @@ license = "MIT OR Apache-2.0"
 members = ["closure_attr_core", "closure_attr_derive"]
 
 [dependencies]
-closure_attr_derive = { version = "0.1.0", path = "closure_attr_derive" }
+closure_attr_derive = { version = "0.2.0", path = "closure_attr_derive" }
