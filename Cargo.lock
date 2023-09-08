@@ -4,14 +4,14 @@ version = 3
 
 [[package]]
 name = "closure_attr"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "closure_attr_derive",
 ]
 
 [[package]]
 name = "closure_attr_core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -20,7 +20,7 @@ dependencies = [
 
 [[package]]
 name = "closure_attr_derive"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "closure_attr_core",
 ]

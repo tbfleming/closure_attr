@@ -1,6 +1,6 @@
 [package]
 name = "closure_attr_core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Internal library for the closure_attr crate"
 repository = "https://github.com/tbfleming/closure_attr"
