@@ -91,8 +91,8 @@ let closure = {
     let a = ::closure_attr::Downgrade::downgrade(&a);
     move || {
         (|| {
-            let r = r.upgrade()?;
-            let a = a.upgrade()?;
+            let r = ::closure_attr::Upgrade::upgrade(&r)?;
+            let a = ::closure_attr::Upgrade::upgrade(&a)?;
             Some((|| *r * *a)())
         })()
         .unwrap_or_default()

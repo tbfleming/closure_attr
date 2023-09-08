@@ -472,8 +472,8 @@ fn weak() {
                 let a = ::closure_attr::Downgrade::downgrade(&a);
                 move | |
                     (|| {
-                        let r = r.upgrade()?;
-                        let a = a.upgrade()?;
+                        let r = ::closure_attr::Upgrade::upgrade(&r)?;
+                        let a = ::closure_attr::Upgrade::upgrade(&a)?;
                         Some((||())())
                     })()
                     .unwrap_or_default()
@@ -501,8 +501,8 @@ fn weak_with_args() {
                 let a = ::closure_attr::Downgrade::downgrade(&a);
                 move |a, b:i32, mut c|
                     (|| {
-                        let r = r.upgrade()?;
-                        let a = a.upgrade()?;
+                        let r = ::closure_attr::Upgrade::upgrade(&r)?;
+                        let a = ::closure_attr::Upgrade::upgrade(&a)?;
                         Some((||())())
                     })()
                     .unwrap_or_default()
@@ -530,8 +530,8 @@ fn weak_with_ret() {
                 let a = ::closure_attr::Downgrade::downgrade(&a);
                 move |a, b:i32, mut c|
                     (|| {
-                        let r = r.upgrade()?;
-                        let a = a.upgrade()?;
+                        let r = ::closure_attr::Upgrade::upgrade(&r)?;
+                        let a = ::closure_attr::Upgrade::upgrade(&a)?;
                         Some((||
                             { return 7; }
                         )())

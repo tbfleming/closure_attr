@@ -163,7 +163,7 @@ impl<'a> VisitMut for Visitor<'a> {
                     locals.extend(
                         quote_spanned! {span=> let #ident = ::closure_attr::Downgrade::downgrade(&#ident);},
                     );
-                    upgrade.extend(quote_spanned! {span=> let #ident = #ident.upgrade()?;});
+                    upgrade.extend(quote_spanned! {span=> let #ident = ::closure_attr::Upgrade::upgrade(&#ident)?;});
                 }
             }
         }
