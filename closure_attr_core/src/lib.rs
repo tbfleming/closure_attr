@@ -5,9 +5,10 @@ use quote::{quote, quote_spanned};
 use syn::{
     ext::IdentExt,
     parse::{Parse, ParseStream},
+    parse_quote,
     spanned::Spanned,
     visit_mut::VisitMut,
-    AttrStyle, Error, Expr, Ident, Meta, Token,
+    AttrStyle, Error, Expr, Ident, Item, Meta, Token,
 };
 
 enum Capture {
@@ -66,6 +67,7 @@ impl Parse for Captures {
 
 struct Visitor<'a> {
     errors: &'a mut TokenStream2,
+    need_allow: bool,
 }
 
 impl<'a> VisitMut for Visitor<'a> {
@@ -191,6 +193,7 @@ impl<'a> VisitMut for Visitor<'a> {
                     Some((||#body)())
                 })().unwrap_or_default()
             }));
+            self.need_allow = true;
         }
 
         *expr = Expr::Verbatim(quote_spanned! {span=>
@@ -199,6 +202,38 @@ impl<'a> VisitMut for Visitor<'a> {
                 #closure
             }
         });
+    }
+
+    // Ideally we'd put the #[allow] attribute on the closure itself,
+    // but that's not stable. Instead we put it on the inner-most item
+    // containing it.
+    fn visit_item_mut(&mut self, i: &mut Item) {
+        syn::visit_mut::visit_item_mut(self, i);
+        if self.need_allow {
+            match i {
+                Item::Const(syn::ItemConst { attrs, .. })
+                | Item::Enum(syn::ItemEnum { attrs, .. })
+                | Item::ExternCrate(syn::ItemExternCrate { attrs, .. })
+                | Item::Fn(syn::ItemFn { attrs, .. })
+                | Item::ForeignMod(syn::ItemForeignMod { attrs, .. })
+                | Item::Impl(syn::ItemImpl { attrs, .. })
+                | Item::Macro(syn::ItemMacro { attrs, .. })
+                | Item::Mod(syn::ItemMod { attrs, .. })
+                | Item::Static(syn::ItemStatic { attrs, .. })
+                | Item::Struct(syn::ItemStruct { attrs, .. })
+                | Item::Trait(syn::ItemTrait { attrs, .. })
+                | Item::TraitAlias(syn::ItemTraitAlias { attrs, .. })
+                | Item::Type(syn::ItemType { attrs, .. })
+                | Item::Union(syn::ItemUnion { attrs, .. })
+                | Item::Use(syn::ItemUse { attrs, .. }) => {
+                    attrs.push(
+                        parse_quote!(#[allow(clippy::unit_arg, clippy::redundant_closure_call)]),
+                    );
+                    self.need_allow = false;
+                }
+                _ => {}
+            }
+        }
     }
 }
 
@@ -223,6 +258,7 @@ pub fn with_closure(attr: TokenStream2, item_tokens: TokenStream2) -> TokenStrea
     };
     let mut visitor = Visitor {
         errors: &mut errors,
+        need_allow: false,
     };
     visitor.visit_item_mut(&mut item);
     quote! {#errors #item}

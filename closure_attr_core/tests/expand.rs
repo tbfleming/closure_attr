@@ -466,7 +466,9 @@ fn weak() {
             .unwrap()
         )
         .to_string(),
-        quote! {fn f() {
+        quote! {
+            #[allow(clippy::unit_arg, clippy::redundant_closure_call)]
+            fn f() {
             {
                 let r = ::closure_attr::Downgrade::downgrade(&r);
                 let a = ::closure_attr::Downgrade::downgrade(&a);
@@ -495,7 +497,9 @@ fn weak_with_args() {
             .unwrap()
         )
         .to_string(),
-        quote! {fn f() {
+        quote! {
+            #[allow(clippy::unit_arg, clippy::redundant_closure_call)]
+            fn f() {
             {
                 let r = ::closure_attr::Downgrade::downgrade(&r);
                 let a = ::closure_attr::Downgrade::downgrade(&a);
@@ -524,7 +528,9 @@ fn weak_with_ret() {
             .unwrap()
         )
         .to_string(),
-        quote! {fn f() {
+        quote! {
+            #[allow(clippy::unit_arg, clippy::redundant_closure_call)]
+            fn f() {
             {
                 let r = ::closure_attr::Downgrade::downgrade(&r);
                 let a = ::closure_attr::Downgrade::downgrade(&a);
