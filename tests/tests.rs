@@ -33,21 +33,22 @@ fn prevent_rc_loop() {
 
     let callback = #[closure(weak x)]
     move || {
-        x.called.set(true);
+        x.upgrade().unwrap().called.set(true);
     };
     (*x.callback.borrow_mut()) = Some(Box::new(callback));
 
-    assert_eq!(x.called.get(), false);
+    assert!(!x.called.get());
     (*x.callback.borrow_mut()).as_mut().unwrap()();
-    assert_eq!(x.called.get(), true);
+    assert!(x.called.get());
 
-    assert_eq!(dropped.get(), false);
+    assert!(!dropped.get());
     drop(x);
-    assert_eq!(dropped.get(), true);
+    assert!(dropped.get());
 }
 
 #[test]
 #[closure_attr::with_closure]
+#[allow(clippy::needless_return)]
 fn return_in_body() {
     let i = Rc::new(42);
     let callback = #[closure(clone i)]
@@ -59,9 +60,10 @@ fn return_in_body() {
 
 #[test]
 #[closure_attr::with_closure]
-fn return_in_weak_body() {
+#[allow(clippy::needless_return)]
+fn return_in_panic_body() {
     let i = Arc::new(42);
-    let callback = #[closure(weak i)]
+    let callback = #[closure(panic i)]
     move || {
         return *i;
     };
@@ -70,6 +72,52 @@ fn return_in_weak_body() {
 
 #[test]
 #[closure_attr::with_closure]
+fn live_fail() {
+    let i = Arc::new(42);
+    let callback = #[closure(fail(7) i)]
+    move || *i;
+    assert_eq!(callback(), 42);
+}
+
+#[test]
+#[closure_attr::with_closure]
+fn dead_fail() {
+    let i = Arc::new(42);
+    let callback = #[closure(fail(7) i)]
+    move || *i;
+    drop(i);
+    assert_eq!(callback(), 7);
+}
+
+#[test]
+#[closure_attr::with_closure]
+#[allow(clippy::needless_return)]
+fn live_panic() {
+    let i = Arc::new(42);
+    let callback = #[closure(panic i)]
+    move || {
+        return *i;
+    };
+    assert_eq!(callback(), 42);
+}
+
+#[test]
+#[should_panic(expected = "Closure failed to upgrade weak pointer")]
+#[closure_attr::with_closure]
+#[allow(clippy::needless_return)]
+fn dead_panic() {
+    let i = Arc::new(42);
+    let callback = #[closure(panic i)]
+    move || {
+        return *i;
+    };
+    drop(i);
+    callback();
+}
+
+#[test]
+#[closure_attr::with_closure]
+#[allow(clippy::needless_return)]
 fn embedded_closure() {
     let i = Rc::new(42);
     let callback = #[closure(clone i)]
@@ -87,6 +135,7 @@ fn embedded_closure() {
 }
 
 #[test]
+#[allow(clippy::no_effect)]
 fn capture_whole() {
     // Test by https://github.com/steffahn
     // Compile will fail if only p.0 is captured

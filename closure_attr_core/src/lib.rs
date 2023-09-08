@@ -4,11 +4,11 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, quote_spanned};
 use syn::{
     ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
-    parse_quote,
     spanned::Spanned,
     visit_mut::VisitMut,
-    AttrStyle, Error, Expr, Ident, Item, Meta, Token,
+    AttrStyle, Error, Expr, Ident, Meta, Token,
 };
 
 enum Capture {
@@ -16,9 +16,11 @@ enum Capture {
     CloneMut(Ident),
     Ref(Ident),
     RefMut(Ident),
-    Weak(Ident),
     Move(Ident),
     MoveMut(Ident),
+    Weak(Ident),
+    Fail(Expr, Ident),
+    Panic(Ident),
 }
 
 impl Parse for Capture {
@@ -29,10 +31,19 @@ impl Parse for Capture {
             Err(e) => Err(Error::new(
                 e.span(),
                 // The (1) and (2) tags aid testing and debugging.
-                "expected clone, clone mut, ref, ref mut, move, move mut, or weak (1)",
+                "expected clone, clone mut, ref, ref mut, move, move mut, weak, fail, or panic (1)",
             ))?,
         };
         let mut ty = ty.to_string();
+        let mut expr = None;
+        if ty == "fail" {
+            let paren;
+            parenthesized!(paren in input);
+            expr = Some(paren.parse::<Expr>()?);
+            if !paren.is_empty() {
+                Err(Error::new(paren.span(), "expected end of expression"))?;
+            }
+        }
         if input.lookahead1().peek(Token![mut]) {
             input.parse::<Token![mut]>()?;
             ty += " mut";
@@ -45,9 +56,11 @@ impl Parse for Capture {
             "move" => Ok(Capture::Move(Ident::parse(input)?)),
             "move mut" => Ok(Capture::MoveMut(Ident::parse(input)?)),
             "weak" => Ok(Capture::Weak(Ident::parse(input)?)),
+            "fail" => Ok(Capture::Fail(expr.unwrap(), Ident::parse(input)?)),
+            "panic" => Ok(Capture::Panic(Ident::parse(input)?)),
             _ => Err(Error::new(
                 span,
-                "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)",
+                "expected clone, clone mut, ref, ref mut, move, move mut, weak, fail, or panic (2)",
             )),
         }
     }
@@ -67,7 +80,6 @@ impl Parse for Captures {
 
 struct Visitor<'a> {
     errors: &'a mut TokenStream2,
-    need_allow: bool,
 }
 
 impl<'a> VisitMut for Visitor<'a> {
@@ -163,9 +175,28 @@ impl<'a> VisitMut for Visitor<'a> {
                 }
                 Capture::Weak(ident) => {
                     locals.extend(
-                        quote_spanned! {span=> let #ident = ::closure_attr::Downgrade::downgrade(&#ident);},
+                        quote_spanned! {span=> let #ident = ::closure_attr::Downgrade::downgrade(&#ident);}
                     );
-                    upgrade.extend(quote_spanned! {span=> let #ident = ::closure_attr::Upgrade::upgrade(&#ident)?;});
+                }
+                Capture::Fail(expr, ident) => {
+                    locals.extend(
+                        quote_spanned! {span=> let #ident = ::closure_attr::Downgrade::downgrade(&#ident);}
+                    );
+                    upgrade.extend(quote_spanned! {
+                        span=> let Some(#ident) = ::closure_attr::Upgrade::upgrade(&#ident) else {
+                            return #expr;
+                        };
+                    });
+                }
+                Capture::Panic(ident) => {
+                    locals.extend(
+                        quote_spanned! {span=> let #ident = ::closure_attr::Downgrade::downgrade(&#ident);}
+                    );
+                    upgrade.extend(quote_spanned! {
+                        span=> let Some(#ident) = ::closure_attr::Upgrade::upgrade(&#ident) else {
+                            ::std::panic!("Closure failed to upgrade weak pointer");
+                        };
+                    });
                 }
             }
         }
@@ -175,7 +206,7 @@ impl<'a> VisitMut for Visitor<'a> {
             let body = closure.body.clone();
             closure.body = Box::new(Expr::Verbatim(quote_spanned! {span=>
                 {
-                    #[allow(unreachable_code)]
+                    #[allow(unreachable_code, clippy::never_loop)]
                     loop {
                         break;
                         #use_whole
@@ -188,12 +219,11 @@ impl<'a> VisitMut for Visitor<'a> {
         if !upgrade.is_empty() {
             let body = closure.body.clone();
             closure.body = Box::new(Expr::Verbatim(quote_spanned! {span=>
-                (|| {
+                {
                     #upgrade
-                    Some((||#body)())
-                })().unwrap_or_default()
+                    #body
+                }
             }));
-            self.need_allow = true;
         }
 
         *expr = Expr::Verbatim(quote_spanned! {span=>
@@ -202,38 +232,6 @@ impl<'a> VisitMut for Visitor<'a> {
                 #closure
             }
         });
-    }
-
-    // Ideally we'd put the #[allow] attribute on the closure itself,
-    // but that's not stable. Instead we put it on the inner-most item
-    // containing it.
-    fn visit_item_mut(&mut self, i: &mut Item) {
-        syn::visit_mut::visit_item_mut(self, i);
-        if self.need_allow {
-            match i {
-                Item::Const(syn::ItemConst { attrs, .. })
-                | Item::Enum(syn::ItemEnum { attrs, .. })
-                | Item::ExternCrate(syn::ItemExternCrate { attrs, .. })
-                | Item::Fn(syn::ItemFn { attrs, .. })
-                | Item::ForeignMod(syn::ItemForeignMod { attrs, .. })
-                | Item::Impl(syn::ItemImpl { attrs, .. })
-                | Item::Macro(syn::ItemMacro { attrs, .. })
-                | Item::Mod(syn::ItemMod { attrs, .. })
-                | Item::Static(syn::ItemStatic { attrs, .. })
-                | Item::Struct(syn::ItemStruct { attrs, .. })
-                | Item::Trait(syn::ItemTrait { attrs, .. })
-                | Item::TraitAlias(syn::ItemTraitAlias { attrs, .. })
-                | Item::Type(syn::ItemType { attrs, .. })
-                | Item::Union(syn::ItemUnion { attrs, .. })
-                | Item::Use(syn::ItemUse { attrs, .. }) => {
-                    attrs.push(
-                        parse_quote!(#[allow(clippy::unit_arg, clippy::redundant_closure_call)]),
-                    );
-                    self.need_allow = false;
-                }
-                _ => {}
-            }
-        }
     }
 }
 
@@ -258,7 +256,6 @@ pub fn with_closure(attr: TokenStream2, item_tokens: TokenStream2) -> TokenStrea
     };
     let mut visitor = Visitor {
         errors: &mut errors,
-        need_allow: false,
     };
     visitor.visit_item_mut(&mut item);
     quote! {#errors #item}

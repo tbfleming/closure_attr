@@ -57,45 +57,61 @@ use_callback({
 | `ref mut <ident>` | Take a mutable reference to the variable |
 | `move <ident>` | Move the variable into the closure |
 | `move mut <ident>` | Move the variable into the closure and make it mutable |
-| `weak <ident>` | See below |
+| `weak <ident>` | Downgrade an `Rc`, `Arc`, or anything else which implements [Downgrade]. Captures the downgraded pointer. This helps break up reference loops. |
+| `fail(<expr>) <ident>` | Like `weak`, but upgrades the weak pointer before executing the closure body. If the upgrade fails, it skips executing the body and returns the expression. |
+| `panic <ident>` | Like `weak`, but upgrades the weak pointer before executing the closure body. If the upgrade fails, it panics with message "Closure failed to upgrade weak pointer". |
 
-## `weak`
-
-`weak` uses weak pointers to help break up reference cycles. It downgrades
-an `Rc` or `Arc` pointer (or anything which implements [Downgrade] and [Upgrade])
-and captures it. The transformed closure upgrades the pointer when it is called.
-If any upgrade fails, it skips executing the body and returns `Default::default()`.
+## `weak`, `fail`, and `panic` transforms
 
 ```rust
-use std::{rc::Rc, sync::Arc};
+use std::{rc::Rc, cell::Cell, cell::RefCell};
 
 #[closure_attr::with_closure]
-fn example() {
-    let r = Rc::new(3);
-    let a = Arc::new(4);
+fn weak_examples() {
+    let i = Rc::new(42);
 
-    let closure = #[closure(weak r, weak a)]
-    move || *r * *a;
+    let weak = #[closure(weak i)]
+    move || *i.upgrade().unwrap() + 1; // manual upgrade
 
-    assert_eq!(closure(), 12);
+    let fail = #[closure(fail(7) i)]
+    move || *i + 2;
+
+    let panic = #[closure(panic i)]
+    move || *i + 3;
+
+    assert_eq!(weak(), 43);
+    assert_eq!(fail(), 44);
+    assert_eq!(panic(), 45);
 }
 
-example();
+weak_examples();
 ```
 
-This Expands to:
+The closures expand to:
 
 ```ignore
-let closure = {
-    let r = ::closure_attr::Downgrade::downgrade(&r);
-    let a = ::closure_attr::Downgrade::downgrade(&a);
+let weak = {
+    let i = ::closure_attr::Downgrade::downgrade(&i);
+    move || *i.upgrade().unwrap() + 1 // manual upgrade
+};
+
+let fail = {
+    let i = ::closure_attr::Downgrade::downgrade(&i);
     move || {
-        (|| {
-            let r = ::closure_attr::Upgrade::upgrade(&r)?;
-            let a = ::closure_attr::Upgrade::upgrade(&a)?;
-            Some((|| *r * *a)())
-        })()
-        .unwrap_or_default()
+        let Some(i) = ::closure_attr::Upgrade::upgrade(&i) else {
+            return 7;
+        };
+        *i + 2
+    }
+};
+
+let panic = {
+    let i = ::closure_attr::Downgrade::downgrade(&i);
+    move || {
+        let Some(i) = ::closure_attr::Upgrade::upgrade(&i) else {
+            ::std::panic!("Closure failed to upgrade weak pointer");
+        };
+        *i + 3
     }
 };
 ```

@@ -19,7 +19,7 @@ fn is_ident(token: Option<TT>, s: &str) -> bool {
         return false;
     };
     if let TT::Ident(ident) = token {
-        ident.to_string() == s
+        ident == s
     } else {
         false
     }
@@ -62,7 +62,7 @@ fn annotate_errors(stream: TokenStream) -> String {
             } = lit.span().end();
             out.extend(quote! {compile_error!{(#l1, #c1), (#l2, #c2), #lit}});
             it = it2;
-            return true;
+            true
         })();
         if !found {
             let Some(tok) = it.next() else { break };
@@ -110,7 +110,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (1)" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, weak, fail, or panic (1)" }
             fn f() {| |();}
         }
         .to_string()
@@ -124,7 +124,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,27usize), "expected clone, clone mut, ref, ref mut, move, move mut, weak, fail, or panic (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -138,7 +138,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,29usize), "expected clone, clone mut, ref, ref mut, move, move mut, weak, fail, or panic (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -152,7 +152,7 @@ fn errors() {
             }"#.parse().unwrap()
         )),
         quote! {
-            compile_error!{ (2usize,26usize), (2usize,30usize), "expected clone, clone mut, ref, ref mut, move, move mut, or weak (2)" }
+            compile_error!{ (2usize,26usize), (2usize,30usize), "expected clone, clone mut, ref, ref mut, move, move mut, weak, fail, or panic (2)" }
             fn f() {| |();}
         }
         .to_string()
@@ -184,7 +184,7 @@ fn errors() {
             fn f() {
                 {
                     let mut x = x.clone();
-                    | | {#[allow(unreachable_code)]loop{break;let _ = &x;} ()}
+                    | | {#[allow(unreachable_code, clippy::never_loop)]loop{break;let _ = &x;} ()}
                 };
             }
         }
@@ -242,7 +242,7 @@ fn clone() {
         quote! {fn f() {
             {
                 let c = c.clone();
-                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
+                move | | {#[allow(unreachable_code, clippy::never_loop)]loop{break; let _=&c;} ()}
             };
         }}
         .to_string()
@@ -261,12 +261,14 @@ fn fn_in_mod() {
             .unwrap()
         )
         .to_string(),
-        quote! {mod m{ fn f() {
-            {
-                let c = c.clone();
-                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
-            };
-        }}}
+        quote! {mod m{
+            fn f() {
+                {
+                    let c = c.clone();
+                    move | | {#[allow(unreachable_code, clippy::never_loop)]loop{break; let _=&c;} ()}
+                };
+            }
+        }}
         .to_string()
     );
 }
@@ -283,12 +285,15 @@ fn closure_in_var() {
             .unwrap()
         )
         .to_string(),
-        quote! {fn f() {
-            let clos = {
-                let c = c.clone();
-                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
-            };
-        }}
+        quote! {
+            fn f()
+            {
+                let clos = {
+                    let c = c.clone();
+                    move | | {#[allow(unreachable_code, clippy::never_loop)]loop{break; let _=&c;} ()}
+                };
+            }
+        }
         .to_string()
     );
 }
@@ -308,7 +313,7 @@ fn closure_in_call() {
         quote! {fn f() {
             callit({
                 let c = c.clone();
-                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
+                move | | {#[allow(unreachable_code, clippy::never_loop)]loop{break; let _=&c;} ()}
             });
         }}
         .to_string()
@@ -330,7 +335,7 @@ fn immediate_call() {
         quote! {fn f() {
             ({
                 let c = c.clone();
-                move | | {#[allow(unreachable_code)]loop{break; let _=&c;} ()}
+                move | | {#[allow(unreachable_code, clippy::never_loop)]loop{break; let _=&c;} ()}
             })();
         }}
         .to_string()
@@ -358,7 +363,7 @@ fn all_but_weak() {
                 let m = m;
                 let mut mm = mm;
                 move | | {
-                    #[allow(unreachable_code)]
+                    #[allow(unreachable_code, clippy::never_loop)]
                     loop {
                         break;
                         let _ = &c;
@@ -397,7 +402,7 @@ fn all_but_weak_with_args() {
                 let m = m;
                 let mut mm = mm;
                 move |a, b:i32, mut c| {
-                    #[allow(unreachable_code)]
+                    #[allow(unreachable_code, clippy::never_loop)]
                     loop {
                         break;
                         let _ = &c;
@@ -436,7 +441,7 @@ fn all_but_weak_with_ret() {
                 let m = m;
                 let mut mm = mm;
                 move |a, b:i32, mut c| {
-                    #[allow(unreachable_code)]
+                    #[allow(unreachable_code, clippy::never_loop)]
                     loop {
                         break;
                         let _ = &c;
@@ -460,25 +465,55 @@ fn weak() {
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(weak r, weak a)] move ||();
+                #[closure(weak r, weak a)] move ||42;
             }"#
             .parse()
             .unwrap()
         )
         .to_string(),
         quote! {
-            #[allow(clippy::unit_arg, clippy::redundant_closure_call)]
             fn f() {
             {
                 let r = ::closure_attr::Downgrade::downgrade(&r);
                 let a = ::closure_attr::Downgrade::downgrade(&a);
+                move | |42
+            };
+        }}
+        .to_string()
+    );
+}
+
+#[test]
+fn upgrade() {
+    assert_eq!(
+        with_closure(
+            quote! {},
+            r#"fn f() {
+                #[closure(fail(7) r, fail({foo(); 9}) a, panic c)] move ||42;
+            }"#
+            .parse()
+            .unwrap()
+        )
+        .to_string(),
+        quote! {
+            fn f() {
+            {
+                let r = ::closure_attr::Downgrade::downgrade(&r);
+                let a = ::closure_attr::Downgrade::downgrade(&a);
+                let c = ::closure_attr::Downgrade::downgrade(&c);
                 move | |
-                    (|| {
-                        let r = ::closure_attr::Upgrade::upgrade(&r)?;
-                        let a = ::closure_attr::Upgrade::upgrade(&a)?;
-                        Some((||())())
-                    })()
-                    .unwrap_or_default()
+                {
+                    let Some(r) = ::closure_attr::Upgrade::upgrade(&r) else {
+                        return 7;
+                    };
+                    let Some(a) = ::closure_attr::Upgrade::upgrade(&a) else {
+                        return {foo(); 9};
+                    };
+                    let Some(c) = ::closure_attr::Upgrade::upgrade(&c) else {
+                        ::std::panic!("Closure failed to upgrade weak pointer");
+                    };
+                    42
+                }
             };
         }}
         .to_string()
@@ -486,63 +521,36 @@ fn weak() {
 }
 
 #[test]
-fn weak_with_args() {
+fn upgrade_with_args() {
     assert_eq!(
         with_closure(
             quote! {},
             r#"fn f() {
-                #[closure(weak r, weak a)] move |a, b:i32, mut c|();
+                #[closure(fail(7) r, fail({foo(); 9}) a, panic c)] move |a, b:i32, mut c|{return 42;};
             }"#
             .parse()
             .unwrap()
         )
         .to_string(),
         quote! {
-            #[allow(clippy::unit_arg, clippy::redundant_closure_call)]
             fn f() {
             {
                 let r = ::closure_attr::Downgrade::downgrade(&r);
                 let a = ::closure_attr::Downgrade::downgrade(&a);
+                let c = ::closure_attr::Downgrade::downgrade(&c);
                 move |a, b:i32, mut c|
-                    (|| {
-                        let r = ::closure_attr::Upgrade::upgrade(&r)?;
-                        let a = ::closure_attr::Upgrade::upgrade(&a)?;
-                        Some((||())())
-                    })()
-                    .unwrap_or_default()
-            };
-        }}
-        .to_string()
-    );
-}
-
-#[test]
-fn weak_with_ret() {
-    assert_eq!(
-        with_closure(
-            quote! {},
-            r#"fn f() {
-                #[closure(weak r, weak a)] move |a, b:i32, mut c| {return 7;};
-            }"#
-            .parse()
-            .unwrap()
-        )
-        .to_string(),
-        quote! {
-            #[allow(clippy::unit_arg, clippy::redundant_closure_call)]
-            fn f() {
-            {
-                let r = ::closure_attr::Downgrade::downgrade(&r);
-                let a = ::closure_attr::Downgrade::downgrade(&a);
-                move |a, b:i32, mut c|
-                    (|| {
-                        let r = ::closure_attr::Upgrade::upgrade(&r)?;
-                        let a = ::closure_attr::Upgrade::upgrade(&a)?;
-                        Some((||
-                            { return 7; }
-                        )())
-                    })()
-                    .unwrap_or_default()
+                {
+                    let Some(r) = ::closure_attr::Upgrade::upgrade(&r) else {
+                        return 7;
+                    };
+                    let Some(a) = ::closure_attr::Upgrade::upgrade(&a) else {
+                        return {foo(); 9};
+                    };
+                    let Some(c) = ::closure_attr::Upgrade::upgrade(&c) else {
+                        ::std::panic!("Closure failed to upgrade weak pointer");
+                    };
+                    {return 42;}
+                }
             };
         }}
         .to_string()
@@ -572,7 +580,7 @@ fn embedded_closure() {
             {
                 let i = i.clone();
                 move | | {
-                    #[allow(unreachable_code)]
+                    #[allow(unreachable_code, clippy::never_loop)]
                     loop {
                         break;
                         let _ = &i;
@@ -581,7 +589,7 @@ fn embedded_closure() {
                         let inner = {
                             let i = i.clone();
                             move | | {
-                                #[allow(unreachable_code)]
+                                #[allow(unreachable_code, clippy::never_loop)]
                                 loop {
                                     break;
                                     let _ = &i;
